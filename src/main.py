@@ -68,6 +68,9 @@ def generate_desplegament_total(df):
     #por si acaso sumar en la columna de Total Producció los valores de Producció OK y Producció KO
     df['Total Producció'] = df['Producció OK'] + df['Producció KO']
 
+    #poner la abreviacion de los meses y las letras en minusculas
+    df['Fecha'] = df['Fecha'].str.slice(stop=3).str.lower()
+
     return df
 
 def generate_desplegamnet_mes(df,mes):
@@ -94,6 +97,7 @@ def generate_desplegamnet_mes(df,mes):
 
     #Por si acaso sumar en la columna de Total Producció los valores de Producció OK y Producció KO
     df['Total Producció'] = df['Producció OK'] + df['Producció KO']
+    
 
     return df
 
@@ -162,14 +166,18 @@ def generate_total_desplegament_tecnologia_mes(df):
     #eliminar de la fecha el año y mes para que solo quede el nombre del mes
     df['Fecha'] = df['Fecha'].str.split('-').str[2]
 
-    # poner la primera letra de  cada mes en mayuscula
-    df['Fecha'] = df['Fecha'].str.capitalize()
+    #Abreviar los nombres de los meses
+    df['Fecha'] = df['Fecha'].str.slice(stop=3)
+
 
     #eliminar la cabecera de las columnas
     df.columns = df.columns.droplevel(0)
 
     #creamos una columna nueva con el total general de produccion
     df['Total General'] = df.sum(axis=1)
+
+    
+
 
     return df
 
@@ -517,10 +525,10 @@ def main():
 
     sheet_name = 'Master'
 
-    df_anterior = generate_total_per_mes(read_excel(path,sheet_name),2022)
-    df_actual = generate_total_per_mes(df,2023)
+    df_anterior = generate_total_per_mes(read_excel(path,sheet_name),now.year-1)
+    df_actual = generate_total_per_mes(df,now.year)
 
-    generate_graphic(generate_comparacio_anys(df_actual,df_anterior,2023,2022),'docs\grafico.xlsx','Comparació anys',"Comparació anys","Mesos")
+    generate_graphic(generate_comparacio_anys(df_actual,df_anterior,now.year,now.year-1),'docs\grafico.xlsx','Comparació anys',"Comparació anys","Mesos")
 
 if __name__ == '__main__':
     main()
