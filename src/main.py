@@ -29,6 +29,14 @@ now = datetime.datetime.now()
 
 def read_excel(path,sheet_name):
     df = pd.read_excel(path,sheet_name=sheet_name)
+    #df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%d')
+
+    #Eliminar filas con todos los valores NaN
+    df = df.dropna(how='all')
+
+    #sustituit los valores NaN por 0
+    df = df.fillna(0)
+
     return df
 
 
@@ -56,6 +64,10 @@ def generate_desplegament_total(df):
     #poner en mayusculas la primera letra del mes
     df['Fecha'] = df['Fecha'].str.capitalize()
 
+
+    #por si acaso sumar en la columna de Total Producció los valores de Producció OK y Producció KO
+    df['Total Producció'] = df['Producció OK'] + df['Producció KO']
+
     return df
 
 def generate_desplegamnet_mes(df,mes):
@@ -79,6 +91,9 @@ def generate_desplegamnet_mes(df,mes):
 
     #Eliminar del dataframe las filas que tengan el valor de Total Producció igual a 0
     df = df[df['Total Producció'] != 0]
+
+    #Por si acaso sumar en la columna de Total Producció los valores de Producció OK y Producció KO
+    df['Total Producció'] = df['Producció OK'] + df['Producció KO']
 
     return df
 
@@ -235,6 +250,74 @@ def generate_total_desplegament_Urgente_mes(df):
     return df
 
  
+def generate_total_per_mes(df, year):
+    # Copiar el DataFrame para no modificar el original
+    df_copy = df.copy()
+
+    # Filtrar las filas donde 'Tecnologies' no sea igual a 'Total'
+    df_copy = df_copy[df_copy['Tecnologies'] != 'Total']
+
+    # Convertir la columna 'Fecha' al tipo datetime
+    df_copy['Fecha'] = pd.to_datetime(df_copy['Fecha'])
+
+    # Filtrar por el año deseado
+    df_copy = df_copy[df_copy['Fecha'].dt.year == year]
+
+    # Función para obtener el nombre del mes en formato deseado
+    def obtener_nombre_mes(date):
+        meses = ['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
+        return meses[date.month - 1]
+
+    # Aplicar la función para obtener el nombre del mes
+    df_copy['Mes'] = df_copy['Fecha'].apply(obtener_nombre_mes)
+
+    # Limpiar y convertir las columnas 'Producció OK' y 'Producció KO' a valores numéricos
+    df_copy['Producció OK'] = pd.to_numeric(df_copy['Producció OK'], errors='coerce')
+    df_copy['Producció KO'] = pd.to_numeric(df_copy['Producció KO'], errors='coerce')
+
+    # Seleccionar solo las columnas 'Mes', 'Producció OK' y 'Producció KO'
+    df_copy = df_copy[['Mes', 'Producció OK', 'Producció KO']]
+
+    # Agrupar por mes y sumar los valores
+    df_copy = df_copy.groupby('Mes').sum().reset_index()
+
+    # Crear una columna 'Numero Mes' para ordenar correctamente
+    meses_ordenados =['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
+    df_copy['Numero Mes'] = df_copy['Mes'].apply(lambda x: meses_ordenados.index(x) + 1)
+
+    # Ordenar por el número de mes
+    df_copy = df_copy.sort_values(by='Numero Mes')
+
+    # Eliminar la columna 'Numero Mes'
+    df_copy = df_copy.drop(columns='Numero Mes')
+
+    #quitar el decimal a las columnas de Producció OK y Producció KO
+    df_copy['Producció OK'] = df_copy['Producció OK'].astype(int)
+    df_copy['Producció KO'] = df_copy['Producció KO'].astype(int)
+ 
+
+    return df_copy
+
+ 
+
+def generate_comparacio_anys(df_anterior,df_actual,n=0,m=1):
+    df_anterior = df_anterior.rename(columns={'Producció OK':'Producció OK ' + str(n),'Producció KO':'Producció KO ' + str(n)})
+    
+    df_actual = df_actual.rename(columns={'Producció OK':'Producció OK ' + str(m),'Producció KO':'Producció KO ' + str(m)})
+
+    #ahora vamos a unir los dos dataframes
+    df = pd.merge(df_anterior,df_actual,how='inner',on='Mes')
+
+    #agregar una colunma que sea el total de produccion de los dos años
+    df['Total Producció ' + str(n)] = df['Producció OK ' + str(n)] + df['Producció KO ' + str(n)]
+    df['Total Producció ' + str(m)] = df['Producció OK ' + str(m)] + df['Producció KO ' + str(m)]
+
+    #eliminar las columnas de Producció OK y Producció KO del ano anterior
+    df = df.drop(columns=['Producció OK ' + str(m),'Producció KO ' + str(m)])
+
+    return df
+
+
 
 
 def excel_style(ws):
@@ -266,13 +349,16 @@ def excel_style(ws):
     return ws
     
 
-    
 def generate_graphic(df,doc_excel,hoja=None,title=None,x_axis=None):
 
     #si el archivo excel existe, se abre y agrega la hoja de trabajo, si no existe, se crea el archivo excel
     if os.path.isfile(doc_excel):
         wb = openpyxl.load_workbook(doc_excel)
-        ws = wb[hoja]
+        #compobar si la hoja existe
+        if hoja in wb.sheetnames:
+            ws = wb[hoja]
+        else:   
+                ws = wb.create_sheet(hoja)
     else:
         wb = Workbook()
         ws = wb.active
@@ -285,27 +371,6 @@ def generate_graphic(df,doc_excel,hoja=None,title=None,x_axis=None):
 
     ws = excel_style(ws)
    
-    
-    # Crear el gráfico de barras
-    chart = BarChart3D()
-    chart.type = "col"
-    chart.style = 10
-    chart.title = title
-    chart.y_axis.title = 'Total'
-    chart.x_axis.title = x_axis
-
-    # Referenciar las celdas del gráfico
-    data = Reference(ws, min_col=2, min_row=1, max_col=3, max_row=ws.max_row)
-
-    # Referenciar las celdas de las categorias
-    cats = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
-    
-    chart.add_data(data, titles_from_data=True)
-    chart.set_categories(cats)
-
-    # Añadir el gráfico a la hoja de trabajo
-    ws.add_chart(chart, "G2")
-    
     #nombre de la hoja
     ws.title = hoja
     
@@ -330,35 +395,7 @@ def generate_circular_graphic(df,doc_excel,hoja=None,title=None):
         ws.append(r)
 
     ws = excel_style(ws)
-   
-    '''# Crear el gráfico circular
-    chart = PieChart()
-    chart.type = "col"
-    chart.style = 10
-    chart.title = title
-
-    # Configurar el estilo del gráfico para simular un anillo
-    for serie in chart.series:
-        serie.graphicalProperties.pieChart = "squaredCircle" 
-
-    #mostrar los datos de cada categoria en el grafico circular
-    chart.dataLabels = DataLabelList()
-    chart.dataLabels.showVal = True
-
-
-    # Referenciar las celdas del gráfico
-    data = Reference(ws, min_col=2, min_row=1, max_col=3, max_row=ws.max_row)
-
-    # Referenciar las celdas de las categorias
-    cats = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
-
-    chart.add_data(data, titles_from_data=True)
-
-    chart.set_categories(cats)
-
-    # Añadir el gráfico a la hoja de trabajo
-    ws.add_chart(chart, "G2")'''
-
+    
     #guardar el archivo
     wb.save(doc_excel)
 
@@ -381,28 +418,6 @@ def generate_horizontal_graphic(df,doc_excel,hoja=None,title=None):
 
     ws = excel_style(ws)
    
-    '''
-    # Crear el gráfico de lineas
-    chart =  StockChart()
-    chart.type = "col"
-    chart.style = 10
-    chart.title = title
-
-
-    # Referenciar las celdas del gráfico
-    data = Reference(ws, min_col=2, min_row=1, max_col=ws.max_column-1, max_row=ws.max_row)
-
-    # Referenciar las celdas de las categorias
-    cats = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
-
-    chart.add_data(data, titles_from_data=True)
-
-    chart.set_categories(cats)
-
-    # Añadir el gráfico a la hoja de trabajo
-    ws.add_chart(chart, "G22")
-
-    '''
     #nombre de la hoja
     ws.title = hoja
 
@@ -426,50 +441,6 @@ def generate_graphic_barras_lineal(df,doc_excel,hoja=None,title=None):
         ws.append(r)
 
     ws = excel_style(ws)
-
-    # Parte para generar los graficos.
-
-    '''# Crear el gráfico de barras
-    chart = LineChart()
-    chart.type = "col"
-    chart.style = 10
-    chart.title = title
-
-    # Referenciar las celdas del gráfico
-    data = Reference(ws, min_col=ws.max_column, min_row=1, max_col=ws.max_column, max_row=ws.max_row)
-
-    # Referenciar las celdas de las categorias
-    cats = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
-
-    chart.add_data(data, titles_from_data=True)
-
-    chart.set_categories(cats)
-
-    # Añadir el gráfico a la hoja de trabajo
-    ws.add_chart(chart, "G30")
-
-
-    # Crear el gráfico de lineas
-    chart2 = BarChart()
-    chart2.type = "col"
-    chart2.style = 10
-    chart2.title = title
-
-    # Referenciar las celdas del gráfico
-    data = Reference(ws, min_col=2, min_row=1, max_col=ws.max_column-1, max_row=ws.max_row)
-
-    # Referenciar las celdas de las categorias
-    cats = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
-
-    chart2.add_data(data, titles_from_data=True)
-
-    chart2.set_categories(cats)
-
-    #combinar los dos graficos
-    chart += chart2
-
-    # Añadir el gráfico a la hoja de trabajo
-    ws.add_chart(chart2, "G40")'''
 
     #nombre de la hoja
     ws.title = hoja
@@ -530,7 +501,6 @@ def main():
     path = r'docs\plantilla.xlsx'
     sheet_name = 'Tecnologies'
 
-
     fecha = '2023-09'
     df = read_excel(path,sheet_name)
 
@@ -545,6 +515,12 @@ def main():
     generate_graphic_barras_lineal( generate_total_desplegament_Urgente_mes(df),'docs\grafico.xlsx','% KO Urgentes',"% Peticions Urgents")
     generate_graphic_barras_lineal(generate_total_desplegament_DevOps_mes(df), 'docs\grafico.xlsx', '% KO DevOps', "% Peticions DevOps")
 
+    sheet_name = 'Master'
+
+    df_anterior = generate_total_per_mes(read_excel(path,sheet_name),2022)
+    df_actual = generate_total_per_mes(df,2023)
+
+    generate_graphic(generate_comparacio_anys(df_actual,df_anterior,2023,2022),'docs\grafico.xlsx','Comparació anys',"Comparació anys","Mesos")
 
 if __name__ == '__main__':
     main()
