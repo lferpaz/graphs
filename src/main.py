@@ -27,154 +27,178 @@ now = datetime.datetime.now()
 # 1. En el excel de plantilla, en la hoja de tecnologias, hay una tabla con las columnas [Fecha,Tecnologies,Producció OK,Producció KO,Total Producció]
 ###################################
 
-def read_excel(path,sheet_name):
-    df = pd.read_excel(path,sheet_name=sheet_name)
-    #df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%d')
+def read_excel(path, sheet_name):
+    try:
+        df = pd.read_excel(path, sheet_name=sheet_name)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"L'arxiu '{path}' no existeix. Verifiqueu la ruta i el nom de l'arxiu.")
+    except Exception as e:
+        raise Exception(f"S'ha produït un error en llegir l'arxiu '{path}': {str(e)}")
 
-    #Eliminar filas con todos los valores NaN
-    df = df.dropna(how='all')
-
-    #sustituit los valores NaN por 0
-    df = df.fillna(0)
+    try:
+        # Eliminar files amb tots els valors NaN
+        df = df.dropna(how='all')
+        
+        # Sustituir els valors NaN per 0
+        df = df.fillna(0)
+    except Exception as e:
+        raise Exception(f"S'ha produït un error en netejar les dades: {str(e)}")
 
     return df
 
 
 def generate_desplegament_total(df):
-    #hacer una copia del dataframe para no afectar el original
-    df = df.copy()
-    #En la columa de fecha, se debe de poner el formato de año y mes
-    df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
-
-    #eliminar la columna de Urgentes
-    df = df.drop(columns=['Urgents'])
-
-     #Agrupar por fecha y sumar las columnas de Producció OK y Producció KO
-    df = df.groupby(['Fecha']).sum()
-
-    #Resetear el index para que la columna de fecha sea una columna normal
-    df = df.reset_index()
-
-    #ordenar por años y mes en orden de meses
-    df = df.sort_values(by=['Fecha'],ascending=True)
-
-    #eliminar de la fecha el año y mes para que solo quede el nombre del mes
-    df['Fecha'] = df['Fecha'].str.split('-').str[2]
-
-    #poner en mayusculas la primera letra del mes
-    df['Fecha'] = df['Fecha'].str.capitalize()
-
-
-    #por si acaso sumar en la columna de Total Producció los valores de Producció OK y Producció KO
-    df['Total Producció'] = df['Producció OK'] + df['Producció KO']
-
-    #poner la abreviacion de los meses y las letras en minusculas
-    df['Fecha'] = df['Fecha'].str.slice(stop=3).str.lower()
+    try:
+        # Hacer una copia del dataframe para no afectar el original
+        df = df.copy()
+        
+        # En la columna de fecha, se debe poner el formato de año y mes
+        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
+        
+        # Eliminar la columna de Urgentes
+        df = df.drop(columns=['Urgents'])
+        
+        # Agrupar por fecha y sumar las columnas de Producció OK y Producció KO
+        df = df.groupby(['Fecha']).sum()
+        
+        # Resetear el índice para que la columna de fecha sea una columna normal
+        df = df.reset_index()
+        
+        # Ordenar por años y mes en orden de meses
+        df = df.sort_values(by=['Fecha'], ascending=True)
+        
+        # Eliminar de la fecha el año y mes para que solo quede el nombre del mes
+        df['Fecha'] = df['Fecha'].str.split('-').str[2]
+        
+        # Poner en mayúsculas la primera letra del mes
+        df['Fecha'] = df['Fecha'].str.capitalize()
+        
+        # Por si acaso, sumar en la columna de Total Producció los valores de Producció OK y Producció KO
+        df['Total Producció'] = df['Producció OK'] + df['Producció KO']
+        
+        # Poner la abreviación de los meses y las letras en minúsculas
+        df['Fecha'] = df['Fecha'].str.slice(stop=3).str.lower()
+        
+    except Exception as e:
+        raise Exception(f"S'ha produït un error en generar el desplegament total: {str(e)}")
 
     return df
 
-def generate_desplegamnet_mes(df,mes):
-    df = df.copy()
-    #En la columa de fecha, se debe de poner el formato de año y mes
-    df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m')
-
-    #eliminar la columna de Urgentes
-    df = df.drop(columns=['Urgents'])
-    #Filtrar por mes
-    df = df[df['Fecha'] == mes]
-
-    #Agrupar por tecnologia y sumar las columnas de Producció OK y Producció KO
-    df = df.groupby(['Tecnologies']).sum()
-
-    #Resetear el index para que la columna de fecha sea una columna normal
-    df = df.reset_index()
-
-    #Ordenar el dataframe de mayor a menor por la columna de Total Producció
-    df = df.sort_values(by=['Total Producció'],ascending=False)
-
-    #Eliminar del dataframe las filas que tengan el valor de Total Producció igual a 0
-    df = df[df['Total Producció'] != 0]
-
-    #Por si acaso sumar en la columna de Total Producció los valores de Producció OK y Producció KO
-    df['Total Producció'] = df['Producció OK'] + df['Producció KO']
+def generate_desplegamnet_mes(df, mes):
+    try:
+        df = df.copy()
+        
+        # En la columna de fecha, se debe poner el formato de año y mes
+        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m')
+        
+        # Eliminar la columna de Urgentes
+        df = df.drop(columns=['Urgents'])
+        
+        # Filtrar por mes
+        df = df[df['Fecha'] == mes]
+        
+        # Agrupar por tecnologia y sumar las columnas de Producció OK y Producció KO
+        df = df.groupby(['Tecnologies']).sum()
+        
+        # Resetear el índice para que la columna de tecnologia sea una columna normal
+        df = df.reset_index()
+        
+        # Ordenar el dataframe de mayor a menor por la columna de Total Producció
+        df = df.sort_values(by=['Total Producció'], ascending=False)
+        
+        # Eliminar del dataframe las filas que tengan el valor de Total Producció igual a 0
+        df = df[df['Total Producció'] != 0]
+        
+        # Por si acaso, sumar en la columna de Total Producció los valores de Producció OK y Producció KO
+        df['Total Producció'] = df['Producció OK'] + df['Producció KO']
+        
+    except Exception as e:
+        raise Exception(f"S'ha produït un error en generar el desplegament per al mes {mes}: {str(e)}")
     
-
     return df
 
 def generate_total_tecnologia(df):
-    df = df.copy()
-    # Agrupar por tecnologias y sumar el total es decir creamos un nuevo dataframe con las columnas [Tecnologies,Total Producción]
-    df = df.groupby(['Tecnologies']).sum()
+    try:
+        df = df.copy()
+        # Agrupar por tecnologias y sumar el total es decir creamos un nuevo dataframe con las columnas [Tecnologies,Total Producción]
+        df = df.groupby(['Tecnologies']).sum()
 
-    # Resetear el index para que la columna de fecha sea una columna normal
-    df = df.reset_index()
+        # Resetear el index para que la columna de fecha sea una columna normal
+        df = df.reset_index()
 
-    # Ordenar el dataframe de mayor a menor por la columna de Total Producció
-    df = df.sort_values(by=['Total Producció'],ascending=False)
+        # Ordenar el dataframe de mayor a menor por la columna de Total Producció
+        df = df.sort_values(by=['Total Producció'],ascending=True)
 
-    #Eliminar del dataframe las filas que tengan el valor de Total Producció igual a 0
-    df = df[df['Total Producció'] != 0]
+        #Eliminar del dataframe las filas que tengan el valor de Total Producció igual a 0
+        df = df[df['Total Producció'] != 0]
 
-    df  = df[['Tecnologies','Total Producció']]
-
+        df  = df[['Tecnologies','Total Producció']]
+    except Exception as e:
+        raise Exception(f"S'ha produït un error en generar el total de tecnologies: {str(e)}")
     return df
 
 def generate_total_tecnologia_mes(df,mes):
-    df = df.copy()
-    #En la columa de fecha, se debe de poner el formato de año y mes
-    df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m')
+    try:
+        df = df.copy()
+        #En la columa de fecha, se debe de poner el formato de año y mes
+        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m')
 
-    #Seleccionar datos del mes
-    df = df[df['Fecha'] == mes]
+        #Seleccionar datos del mes
+        df = df[df['Fecha'] == mes]
 
-    # Agrupar por tecnologias y sumar el total es decir creamos un nuevo dataframe con las columnas [Tecnologies,Total Producción]
-    df = df.groupby(['Tecnologies']).sum()
+        # Agrupar por tecnologias y sumar el total es decir creamos un nuevo dataframe con las columnas [Tecnologies,Total Producción]
+        df = df.groupby(['Tecnologies']).sum()
 
-    # Resetear el index para que la columna de fecha sea una columna normal
-    df = df.reset_index()
+        # Resetear el index para que la columna de fecha sea una columna normal
+        df = df.reset_index()
 
-    # Ordenar el dataframe de mayor a menor por la columna de Total Producció
-    df = df.sort_values(by=['Total Producció'],ascending=False)
+        # Ordenar el dataframe de mayor a menor por la columna de Total Producció
+        df = df.sort_values(by=['Total Producció'],ascending=True)
 
-    #Eliminar del dataframe las filas que tengan el valor de Total Producció igual a 0
-    df = df[df['Total Producció'] != 0]
+        #Eliminar del dataframe las filas que tengan el valor de Total Producció igual a 0
+        df = df[df['Total Producció'] != 0]
 
-    df  = df[['Tecnologies','Total Producció']]
+        df  = df[['Tecnologies','Total Producció']]
+    except Exception as e:
+            raise Exception(f"S'ha produït un error en generar el total de tecnologies per mes: {str(e)}")
    
     return df
 
 
 def generate_total_desplegament_tecnologia_mes(df):
-    df = df.copy()
+    try:
+        df = df.copy()
 
-    #En la columa de fecha, se debe de poner el formato de año y mes
-    df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
+        #En la columa de fecha, se debe de poner el formato de año y mes
+        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
 
-     #Crearemos un nuevo dataset con las columnas fechas y una nueva columna por cada tecnologia del dataset original
-    df = df.pivot_table(index=['Fecha'],columns=['Tecnologies'],values=['Total Producció'],aggfunc=np.sum)
+         #Crearemos un nuevo dataset con las columnas fechas y una nueva columna por cada tecnologia del dataset original
+        df = df.pivot_table(index=['Fecha'],columns=['Tecnologies'],values=['Total Producció'],aggfunc=np.sum)
 
-   
-    #Resetear el index para que la columna de fecha sea una columna normal
-    df = df.reset_index()
+    
+        #Resetear el index para que la columna de fecha sea una columna normal
+        df = df.reset_index()
 
-    #ponemos todos los NaN a 0
-    df = df.fillna(0)
+        #ponemos todos los NaN a 0
+        df = df.fillna(0)
 
-    #ordenar por años y mes en orden de meses
-    df = df.sort_values(by=['Fecha'],ascending=True)
+        #ordenar por años y mes en orden de meses
+        df = df.sort_values(by=['Fecha'],ascending=True)
 
-    #eliminar de la fecha el año y mes para que solo quede el nombre del mes
-    df['Fecha'] = df['Fecha'].str.split('-').str[2]
+        #eliminar de la fecha el año y mes para que solo quede el nombre del mes
+        df['Fecha'] = df['Fecha'].str.split('-').str[2]
 
-    #Abreviar los nombres de los meses
-    df['Fecha'] = df['Fecha'].str.slice(stop=3)
+        #Abreviar los nombres de los meses
+        df['Fecha'] = df['Fecha'].str.slice(stop=3)
 
 
-    #eliminar la cabecera de las columnas
-    df.columns = df.columns.droplevel(0)
+        #eliminar la cabecera de las columnas
+        df.columns = df.columns.droplevel(0)
 
-    #creamos una columna nueva con el total general de produccion
-    df['Total General'] = df.sum(axis=1)
+        #creamos una columna nueva con el total general de produccion
+        df['Total General'] = df.sum(axis=1)
+    except Exception as e:
+            raise Exception(f"S'ha produït un error en generar el total de desplegaments per tecnologia per mes: {str(e)}")
 
     
 
@@ -182,146 +206,160 @@ def generate_total_desplegament_tecnologia_mes(df):
     return df
 
 def generate_total_desplegament_DevOps_mes(df):
-    df = df.copy()
-    #Tomar solo los valores donde tecnologia sea igual a Devops
-    df = df[df['Tecnologies'] == 'Devops']
+    try:
+        df = df.copy()
+        #Tomar solo los valores donde tecnologia sea igual a Devops
+        df = df[df['Tecnologies'] == 'Devops']
 
-    #elimina la columna "Producció OK"
-    df = df.drop(['Producció OK'],axis=1)
+        #elimina la columna "Producció OK"
+        df = df.drop(['Producció OK'],axis=1)
 
-    #eliminar la columna de Urgentes
-    df = df.drop(['Urgents'],axis=1)
+        #eliminar la columna de Urgentes
+        df = df.drop(['Urgents'],axis=1)
 
-     #En la columa de fecha, se debe de poner el formato de año y mes
-    df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
+         #En la columa de fecha, se debe de poner el formato de año y mes
+        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
 
-    #Agrupar por fecha y sumar las columnas de Producció OK y Producció KO
-    df = df.groupby(['Fecha']).sum()
+        #Agrupar por fecha y sumar las columnas de Producció OK y Producció KO
+        df = df.groupby(['Fecha']).sum()
 
-    #Resetear el index para que la columna de fecha sea una columna normal
-    df = df.reset_index()
+        #Resetear el index para que la columna de fecha sea una columna normal
+        df = df.reset_index()
 
-    #ordenar por años y mes en orden de meses
-    df = df.sort_values(by=['Fecha'],ascending=True)
+        #ordenar por años y mes en orden de meses
+        df = df.sort_values(by=['Fecha'],ascending=True)
 
-    #eliminar de la fecha el año y mes para que solo quede el nombre del mes
-    df['Fecha'] = df['Fecha'].str.split('-').str[2]
+        #eliminar de la fecha el año y mes para que solo quede el nombre del mes
+        df['Fecha'] = df['Fecha'].str.split('-').str[2]
 
-    # poner la primera letra de  cada mes en mayuscula
-    df['Fecha'] = df['Fecha'].str.capitalize()
+        # poner la primera letra de  cada mes en mayuscula
+        df['Fecha'] = df['Fecha'].str.capitalize()
 
-    #Agregar una columna que sea % de KO sobre total de produccion el calculo es Producció KO / Total Producció, mostrar sin decimales
-    df['% KO'] = (df['Producció KO'] / df['Total Producció']) * 100
+        #Agregar una columna que sea % de KO sobre total de produccion el calculo es Producció KO / Total Producció, mostrar sin decimales
+        df['% KO'] = (df['Producció KO'] / df['Total Producció']) * 100
 
-    #eliminar los decimales de la columna % KO
-    df['% KO'] = df['% KO'].astype(int)
+        #eliminar los decimales de la columna % KO
+        df['% KO'] = df['% KO'].astype(int)
 
-    # las columnas son Fecha, Producció KO, Total Producció, % KO, quiero cambiar la posicion de Producció KO, Total Producció, para que quede Fecha, Total Producció, Producció KO, % KO
-    df = df[['Fecha','Total Producció','Producció KO','% KO']]
+        # las columnas son Fecha, Producció KO, Total Producció, % KO, quiero cambiar la posicion de Producció KO, Total Producció, para que quede Fecha, Total Producció, Producció KO, % KO
+        df = df[['Fecha','Total Producció','Producció KO','% KO']]
+    except Exception as e:
+            raise Exception(f"S'ha produït un error en generar el total DevOps  per mes: {str(e)}")
 
     return df
 
+
 def generate_total_desplegament_Urgente_mes(df):
-    df = df.copy()
+    try:
+        df = df.copy()
 
-    #eliminar la columna "Producció OK"
-    df = df.drop(['Producció OK'],axis=1)
+        #eliminar la columna "Producció OK"
+        df = df.drop(['Producció OK'],axis=1)
 
-    #eliminar la columna "Producció KO"
-    df = df.drop(['Producció KO'],axis=1)
+        #eliminar la columna "Producció KO"
+        df = df.drop(['Producció KO'],axis=1)
 
 
-    #En la columa de fecha, se debe de poner el formato de año y mes
-    df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
+        #En la columa de fecha, se debe de poner el formato de año y mes
+        df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
 
-    #Agrupar por fecha y sumar las columnas de Producció OK y Producció KO
-    df = df.groupby(['Fecha']).sum()
+        #Agrupar por fecha y sumar las columnas de Producció OK y Producció KO
+        df = df.groupby(['Fecha']).sum()
 
-    #Resetear el index para que la columna de fecha sea una columna normal
-    df = df.reset_index()
+        #Resetear el index para que la columna de fecha sea una columna normal
+        df = df.reset_index()
 
-    #ordenar por años y mes en orden de meses
-    df = df.sort_values(by=['Fecha'],ascending=True)
+        #ordenar por años y mes en orden de meses
+        df = df.sort_values(by=['Fecha'],ascending=True)
 
-    #eliminar de la fecha el año y mes para que solo quede el nombre del mes
-    df['Fecha'] = df['Fecha'].str.split('-').str[2]
+        #eliminar de la fecha el año y mes para que solo quede el nombre del mes
+        df['Fecha'] = df['Fecha'].str.split('-').str[2]
 
-    # poner la primera letra de  cada mes en mayuscula
-    df['Fecha'] = df['Fecha'].str.capitalize()
+        # abreviar los meses dejar solo las 3 primeras letras
+        df['Fecha'] = df['Fecha'].str.slice(stop=3)
 
-    #Agregar una columna que sea % de Urgentes sobre total de produccion el calculo es Urgentes / Total Producció, mostrar sin decimales
-    df['% Urgents'] = (df['Urgents'] / df['Total Producció']) * 100
 
-    #eliminar los decimales de la columna % Urgentes
-    df['% Urgents'] = df['% Urgents'].astype(int)
+        #Agregar una columna que sea % de Urgentes sobre total de produccion el calculo es Urgentes / Total Producció, mostrar sin decimales
+        df['% Urgents'] = (df['Urgents'] / df['Total Producció']) * 100
+
+        #eliminar los decimales de la columna % Urgentes
+        df['% Urgents'] = df['% Urgents'].astype(int)
+
+    except Exception as e:
+            raise Exception(f"S'ha produït un error en generar el total Urgentes  per mes: {str(e)}")
 
     return df
 
  
 def generate_total_per_mes(df, year):
-    # Copiar el DataFrame para no modificar el original
-    df_copy = df.copy()
+    try:
+        # Copiar el DataFrame para no modificar el original
+        df_copy = df.copy()
 
-    # Filtrar las filas donde 'Tecnologies' no sea igual a 'Total'
-    df_copy = df_copy[df_copy['Tecnologies'] != 'Total']
+        # Filtrar las filas donde 'Tecnologies' no sea igual a 'Total'
+        df_copy = df_copy[df_copy['Tecnologies'] != 'Total']
 
-    # Convertir la columna 'Fecha' al tipo datetime
-    df_copy['Fecha'] = pd.to_datetime(df_copy['Fecha'])
+        # Convertir la columna 'Fecha' al tipo datetime
+        df_copy['Fecha'] = pd.to_datetime(df_copy['Fecha'])
 
-    # Filtrar por el año deseado
-    df_copy = df_copy[df_copy['Fecha'].dt.year == year]
+        # Filtrar por el año deseado
+        df_copy = df_copy[df_copy['Fecha'].dt.year == year]
 
-    # Función para obtener el nombre del mes en formato deseado
-    def obtener_nombre_mes(date):
-        meses = ['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
-        return meses[date.month - 1]
+        # Función para obtener el nombre del mes en formato deseado
+        def obtener_nombre_mes(date):
+            meses = ['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
+            return meses[date.month - 1]
 
-    # Aplicar la función para obtener el nombre del mes
-    df_copy['Mes'] = df_copy['Fecha'].apply(obtener_nombre_mes)
+        # Aplicar la función para obtener el nombre del mes
+        df_copy['Mes'] = df_copy['Fecha'].apply(obtener_nombre_mes)
 
-    # Limpiar y convertir las columnas 'Producció OK' y 'Producció KO' a valores numéricos
-    df_copy['Producció OK'] = pd.to_numeric(df_copy['Producció OK'], errors='coerce')
-    df_copy['Producció KO'] = pd.to_numeric(df_copy['Producció KO'], errors='coerce')
+        # Limpiar y convertir las columnas 'Producció OK' y 'Producció KO' a valores numéricos
+        df_copy['Producció OK'] = pd.to_numeric(df_copy['Producció OK'], errors='coerce')
+        df_copy['Producció KO'] = pd.to_numeric(df_copy['Producció KO'], errors='coerce')
 
-    # Seleccionar solo las columnas 'Mes', 'Producció OK' y 'Producció KO'
-    df_copy = df_copy[['Mes', 'Producció OK', 'Producció KO']]
+        # Seleccionar solo las columnas 'Mes', 'Producció OK' y 'Producció KO'
+        df_copy = df_copy[['Mes', 'Producció OK', 'Producció KO']]
 
-    # Agrupar por mes y sumar los valores
-    df_copy = df_copy.groupby('Mes').sum().reset_index()
+        # Agrupar por mes y sumar los valores
+        df_copy = df_copy.groupby('Mes').sum().reset_index()
 
-    # Crear una columna 'Numero Mes' para ordenar correctamente
-    meses_ordenados =['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
-    df_copy['Numero Mes'] = df_copy['Mes'].apply(lambda x: meses_ordenados.index(x) + 1)
+        # Crear una columna 'Numero Mes' para ordenar correctamente
+        meses_ordenados =['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
+        df_copy['Numero Mes'] = df_copy['Mes'].apply(lambda x: meses_ordenados.index(x) + 1)
 
-    # Ordenar por el número de mes
-    df_copy = df_copy.sort_values(by='Numero Mes')
+        # Ordenar por el número de mes
+        df_copy = df_copy.sort_values(by='Numero Mes')
 
-    # Eliminar la columna 'Numero Mes'
-    df_copy = df_copy.drop(columns='Numero Mes')
+        # Eliminar la columna 'Numero Mes'
+        df_copy = df_copy.drop(columns='Numero Mes')
 
-    #quitar el decimal a las columnas de Producció OK y Producció KO
-    df_copy['Producció OK'] = df_copy['Producció OK'].astype(int)
-    df_copy['Producció KO'] = df_copy['Producció KO'].astype(int)
+        #quitar el decimal a las columnas de Producció OK y Producció KO
+        df_copy['Producció OK'] = df_copy['Producció OK'].astype(int)
+        df_copy['Producció KO'] = df_copy['Producció KO'].astype(int)
+    except Exception as e:
+            raise Exception(f"S'ha produït un error en generar el total per mes comparacio anys: {str(e)}")
  
-
     return df_copy
 
  
 
 def generate_comparacio_anys(df_anterior,df_actual,n=0,m=1):
-    df_anterior = df_anterior.rename(columns={'Producció OK':'Producció OK ' + str(n),'Producció KO':'Producció KO ' + str(n)})
-    
-    df_actual = df_actual.rename(columns={'Producció OK':'Producció OK ' + str(m),'Producció KO':'Producció KO ' + str(m)})
+    try:
+        df_anterior = df_anterior.rename(columns={'Producció OK':'Producció OK ' + str(n),'Producció KO':'Producció KO ' + str(n)})
 
-    #ahora vamos a unir los dos dataframes
-    df = pd.merge(df_anterior,df_actual,how='inner',on='Mes')
+        df_actual = df_actual.rename(columns={'Producció OK':'Producció OK ' + str(m),'Producció KO':'Producció KO ' + str(m)})
 
-    #agregar una colunma que sea el total de produccion de los dos años
-    df['Total Producció ' + str(n)] = df['Producció OK ' + str(n)] + df['Producció KO ' + str(n)]
-    df['Total Producció ' + str(m)] = df['Producció OK ' + str(m)] + df['Producció KO ' + str(m)]
+        #ahora vamos a unir los dos dataframes
+        df = pd.merge(df_anterior,df_actual,how='inner',on='Mes')
 
-    #eliminar las columnas de Producció OK y Producció KO del ano anterior
-    df = df.drop(columns=['Producció OK ' + str(m),'Producció KO ' + str(m)])
+        #agregar una colunma que sea el total de produccion de los dos años
+        df['Total Producció ' + str(n)] = df['Producció OK ' + str(n)] + df['Producció KO ' + str(n)]
+        df['Total Producció ' + str(m)] = df['Producció OK ' + str(m)] + df['Producció KO ' + str(m)]
+
+        #eliminar las columnas de Producció OK y Producció KO del ano anterior
+        df = df.drop(columns=['Producció OK ' + str(m),'Producció KO ' + str(m)])
+    except Exception as e:
+            raise Exception(f"S'ha produït un error en generar el total per mes comparacio anys durant la agrupació: {str(e)}")
 
     return df
 
@@ -357,9 +395,58 @@ def excel_style(ws):
     return ws
     
 
-def generate_graphic(df,doc_excel,hoja=None,title=None,x_axis=None):
 
-    #si el archivo excel existe, se abre y agrega la hoja de trabajo, si no existe, se crea el archivo excel
+def generate_graphic(df, doc_excel, hoja=None, title=None, chart_type=None):
+    # Si el archivo Excel existe, se abre y se agrega la hoja de trabajo; si no existe, se crea el archivo Excel
+    if os.path.isfile(doc_excel):
+        wb = openpyxl.load_workbook(doc_excel)
+        if hoja in wb.sheetnames:
+            ws = wb[hoja]
+        else:
+            ws = wb.create_sheet(hoja)
+    else:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = hoja
+
+    # Borrar la tabla de la hoja de trabajo y agregar el DataFrame
+    ws.delete_rows(1, ws.max_row)
+    for r in dataframe_to_rows(df, index=False, header=True):
+        ws.append(r)
+
+    ws = excel_style(ws)
+
+    # Nombre de la hoja
+    ws.title = hoja
+
+    # Guardar el archivo Excel
+    wb.save(doc_excel)
+
+    # Generar gráfico si se especifica el tipo de gráfico
+    if chart_type == 'circular':
+        generate_circular_graphic(df, wb, hoja, title)
+    elif chart_type == 'horizontal':
+        generate_horizontal_graphic(df, wb, hoja, title)
+    elif chart_type == 'barras_lineal':
+        generate_graphic_barras_lineal(df, wb, hoja, title)
+
+def generate_circular_graphic(df, wb, hoja=None, title=None):
+    # Agregar aquí la lógica para generar un gráfico circular en la hoja especificada
+    pass
+
+def generate_horizontal_graphic(df, wb, hoja=None, title=None):
+    # Agregar aquí la lógica para generar un gráfico horizontal en la hoja especificada
+    pass
+
+def generate_graphic_barras_lineal(df, wb, hoja=None, title=None):
+    # Agregar aquí la lógica para generar un gráfico de barras o lineal en la hoja especificada
+    pass
+
+
+
+
+
+'''def generate_graphic(df,doc_excel,hoja=None,title=None,x_axis=None):
     if os.path.isfile(doc_excel):
         wb = openpyxl.load_workbook(doc_excel)
         #compobar si la hoja existe
@@ -372,7 +459,6 @@ def generate_graphic(df,doc_excel,hoja=None,title=None,x_axis=None):
         ws = wb.active
         ws.title = hoja
 
-    # borrar la tabla de la hoja de trabajo y agregar el dataframe
     ws.delete_rows(1,ws.max_row)
     for r in dataframe_to_rows(df, index=False, header=True):
         ws.append(r)
@@ -391,7 +477,10 @@ def generate_circular_graphic(df,doc_excel,hoja=None,title=None):
     #si el archivo excel existe, se abre y agrega la hoja de trabajo, si no existe, se crea el archivo excel
     if os.path.isfile(doc_excel):
         wb = openpyxl.load_workbook(doc_excel)
-        ws = wb[hoja]
+        if hoja in wb.sheetnames:
+            ws = wb[hoja]
+        else:
+            ws = wb.create_sheet(hoja)
     else:
         wb = Workbook()
         ws = wb.active
@@ -454,7 +543,7 @@ def generate_graphic_barras_lineal(df,doc_excel,hoja=None,title=None):
     ws.title = hoja
 
     # Guardar el archivo
-    wb.save(doc_excel)
+    wb.save(doc_excel)'''
 
 
 #Generar una funcion para mostar un calendario por pantalla que solo permita seleccionar un mes y un año
@@ -506,29 +595,85 @@ def get_date():
     
 
 def main():
-    path = r'docs\plantilla.xlsx'
+    path = "Plantilla.xlsx"
     sheet_name = 'Tecnologies'
 
-    fecha = '2023-09'
+    #Mostrar por pantalla
+    print("#########################################")
+    print("######### Generacio de grafics ###########")
+    print("#########################################")
+    print()
+    print("Per defecte es mostraran els grafics de l'ultim mes")
+    print("Si vols seleccionar un altre mes, premi la tecla 'S' i introdueix el mes i l'any")
+    print()
+    print("Si vols CONTINUAR, premi la tecla 'N'")
+
+
+    #Preguntar al usuario si quiere seleccionar un mes
+    seleccionar_mes = input("Vols seleccionar un mes? (S/N): ")
+
+    if seleccionar_mes == 'S' or seleccionar_mes == 's':
+        #Obtener la fecha seleccionada por el usuario mostrar lista de meses 
+        print("#########################################")
+        print("01. Gener")
+        print("02. Febrer")
+        print("03. Març")
+        print("04. Abril")
+        print("05. Maig")
+        print("06. Juny")
+        print("07. Juliol")
+        print("08. Agost")
+        print("09. Setembre")
+        print("10. Octubre")
+        print("11. Novembre")
+        print("12. Desembre")
+        print("#########################################")
+        mes = int(input("Selecciona el mes: "))
+        year = int(input("Selecciona l'any: "))
+
+        #incluimos el 0 en el mes para que quede 01,02,03,04,05,06,07,08,09
+        if mes < 10:
+            fecha = str(year) + '-' + '0' + str(mes)
+        else:
+            fecha = str(year) + '-' + str(mes)
+
+    else:
+        #incluir el 0 en el mes para que quede 01,02,03,04,05,06,07,08,09
+        if now.month < 10:
+            fecha = str(now.year) + '-' + '0' + str(now.month)
+        else:
+            fecha = str(now.year) + '-' + str(now.month)
+
     df = read_excel(path,sheet_name)
 
-    generate_horizontal_graphic(generate_total_desplegament_tecnologia_mes(df),'docs\grafico.xlsx','Total','Evolució desplegaments per tecnologia')
+    generate_graphic(generate_total_desplegament_tecnologia_mes(df),'grafico.xlsx','Total','Evolució desplegaments per tecnologia')
     
-    generate_graphic(generate_desplegament_total(df),'docs\grafico.xlsx','Total desplegaments',"Desplegaments - Evolució mensual","Mesos")
-    generate_graphic(generate_desplegamnet_mes(df,fecha),'docs\grafico.xlsx','Total desplegaments mes',"Deplegaments -" + fecha,"Tecnologies")
+    generate_graphic(generate_desplegament_total(df),'grafico.xlsx','Total desplegaments',"Desplegaments - Evolució mensual","Mesos")
+    generate_graphic(generate_desplegamnet_mes(df,fecha),'grafico.xlsx','Total desplegaments mes',"Deplegaments -" + fecha,"Tecnologies")
 
-    generate_circular_graphic(generate_total_tecnologia(df),'docs\grafico.xlsx','Total tecnologia',"Evolució Mensual per volum")
-    generate_circular_graphic(generate_total_tecnologia_mes(df,fecha),'docs\grafico.xlsx','Total tecnologia mes',"Evolució Mensual per volum -" + fecha)
+    generate_graphic(generate_total_tecnologia(df),'grafico.xlsx','Total tecnologia',"Evolució Mensual per volum")
+    generate_graphic(generate_total_tecnologia_mes(df,fecha),'grafico.xlsx','Total tecnologia mes',"Evolució Mensual per volum -" + fecha)
     
-    generate_graphic_barras_lineal( generate_total_desplegament_Urgente_mes(df),'docs\grafico.xlsx','% KO Urgentes',"% Peticions Urgents")
-    generate_graphic_barras_lineal(generate_total_desplegament_DevOps_mes(df), 'docs\grafico.xlsx', '% KO DevOps', "% Peticions DevOps")
+    generate_graphic( generate_total_desplegament_Urgente_mes(df),'grafico.xlsx','% KO Urgentes',"% Peticions Urgents")
+    generate_graphic(generate_total_desplegament_DevOps_mes(df), 'grafico.xlsx', '% KO DevOps', "% Peticions DevOps")
 
+    
+    
     sheet_name = 'Master'
 
     df_anterior = generate_total_per_mes(read_excel(path,sheet_name),now.year-1)
     df_actual = generate_total_per_mes(df,now.year)
 
-    generate_graphic(generate_comparacio_anys(df_actual,df_anterior,now.year,now.year-1),'docs\grafico.xlsx','Comparació anys',"Comparació anys","Mesos")
+    generate_graphic(generate_comparacio_anys(df_actual,df_anterior,now.year,now.year-1),'grafico.xlsx','Comparació anys',"Comparació anys","Mesos")
+
+    print("#########################################")
+    print("Grafiques generades correctament")
+    print("Reviseu el fitxer Excel")
+    print("#########################################")
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+        sys.exit()
