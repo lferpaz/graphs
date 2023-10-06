@@ -23,9 +23,19 @@ warnings.filterwarnings("ignore")
 now = datetime.datetime.now()
 
 
+
+# Define una función para convertir la fecha si cumple con el formato
+def convertir_fecha(fecha):
+    try:
+        return pd.to_datetime(fecha, format='%d/%m/%Y')
+    except ValueError:
+        return fecha
+
+
 ########### Comentarios ###########
 # 1. En el excel de plantilla, en la hoja de tecnologias, hay una tabla con las columnas [Fecha,Tecnologies,Producció OK,Producció KO,Total Producció]
 ###################################
+
 
 def read_excel(path, sheet_name):
     try:
@@ -51,10 +61,12 @@ def generate_desplegament_total(df):
     try:
         # Hacer una copia del dataframe para no afectar el original
         df = df.copy()
+
+        df['Fecha'] = df['Fecha'].apply(convertir_fecha)
         
         # En la columna de fecha, se debe poner el formato de año y mes
         df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
-        
+
         # Eliminar la columna de Urgentes
         df = df.drop(columns=['Urgents'])
         
@@ -84,10 +96,13 @@ def generate_desplegament_total(df):
 
     return df
 
+
 def generate_desplegamnet_mes(df, mes):
     try:
         df = df.copy()
-        
+
+        df['Fecha'] = df['Fecha'].apply(convertir_fecha)
+
         # En la columna de fecha, se debe poner el formato de año y mes
         df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m')
         
@@ -140,6 +155,8 @@ def generate_total_tecnologia(df):
 def generate_total_tecnologia_mes(df,mes):
     try:
         df = df.copy()
+
+        df['Fecha'] = df['Fecha'].apply(convertir_fecha)
         #En la columa de fecha, se debe de poner el formato de año y mes
         df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m')
 
@@ -168,6 +185,8 @@ def generate_total_tecnologia_mes(df,mes):
 def generate_total_desplegament_tecnologia_mes(df):
     try:
         df = df.copy()
+
+        df['Fecha'] = df['Fecha'].apply(convertir_fecha)
 
         #En la columa de fecha, se debe de poner el formato de año y mes
         df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
@@ -217,6 +236,8 @@ def generate_total_desplegament_DevOps_mes(df):
         #eliminar la columna de Urgentes
         df = df.drop(['Urgents'],axis=1)
 
+        df['Fecha'] = df['Fecha'].apply(convertir_fecha)
+
          #En la columa de fecha, se debe de poner el formato de año y mes
         df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
 
@@ -232,8 +253,8 @@ def generate_total_desplegament_DevOps_mes(df):
         #eliminar de la fecha el año y mes para que solo quede el nombre del mes
         df['Fecha'] = df['Fecha'].str.split('-').str[2]
 
-        # poner la primera letra de  cada mes en mayuscula
-        df['Fecha'] = df['Fecha'].str.capitalize()
+        # poner solo las 3 primeras letras
+        df['Fecha'] = df['Fecha'].str.slice(stop=3)
 
         #Agregar una columna que sea % de KO sobre total de produccion el calculo es Producció KO / Total Producció, mostrar sin decimales
         df['% KO'] = (df['Producció KO'] / df['Total Producció']) * 100
@@ -259,6 +280,7 @@ def generate_total_desplegament_Urgente_mes(df):
         #eliminar la columna "Producció KO"
         df = df.drop(['Producció KO'],axis=1)
 
+        df['Fecha'] = df['Fecha'].apply(convertir_fecha)
 
         #En la columa de fecha, se debe de poner el formato de año y mes
         df['Fecha'] = pd.to_datetime(df['Fecha']).dt.strftime('%Y-%m-%B')
@@ -298,6 +320,8 @@ def generate_total_per_mes(df, year):
 
         # Filtrar las filas donde 'Tecnologies' no sea igual a 'Total'
         df_copy = df_copy[df_copy['Tecnologies'] != 'Total']
+
+        df_copy['Fecha'] = df_copy['Fecha'].apply(convertir_fecha)
 
         # Convertir la columna 'Fecha' al tipo datetime
         df_copy['Fecha'] = pd.to_datetime(df_copy['Fecha'])
@@ -604,15 +628,15 @@ def main():
     print("#########################################")
     print()
     print("Per defecte es mostraran els grafics de l'ultim mes")
-    print("Si vols seleccionar un altre mes, premi la tecla 'S' i introdueix el mes i l'any")
+    print("Si vols seleccionar un altre mes, premi la tecla 'N' i introdueix el mes i l'any")
     print()
-    print("Si vols CONTINUAR, premi la tecla 'N'")
+    print("Si vols CONTINUAR, premi la tecla 'S'")
 
 
     #Preguntar al usuario si quiere seleccionar un mes
-    seleccionar_mes = input("Vols seleccionar un mes? (S/N): ")
+    seleccionar_mes = input("Vols seleccionar un mes? (N): ")
 
-    if seleccionar_mes == 'S' or seleccionar_mes == 's':
+    if seleccionar_mes == 'N' or seleccionar_mes == 's':
         #Obtener la fecha seleccionada por el usuario mostrar lista de meses 
         print("#########################################")
         print("01. Gener")
@@ -638,11 +662,13 @@ def main():
             fecha = str(year) + '-' + str(mes)
 
     else:
-        #incluir el 0 en el mes para que quede 01,02,03,04,05,06,07,08,09
-        if now.month < 10:
-            fecha = str(now.year) + '-' + '0' + str(now.month)
-        else:
-            fecha = str(now.year) + '-' + str(now.month)
+        #Obtener la fecha actual
+        fecha = str(now.year) + '-' + str(now.month)
+
+    print("#########################################")
+    print("Generant grafics...")
+    print("Fecha seleccionada: " + fecha)
+    print("#########################################")
 
     df = read_excel(path,sheet_name)
 
@@ -674,6 +700,8 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+        #press enter to exit
+        input("Premeu una tecla per a continuar...")
     except Exception as e:
         messagebox.showerror("Error", str(e))
         sys.exit()
