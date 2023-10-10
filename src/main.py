@@ -331,7 +331,7 @@ def generate_total_per_mes(df, year):
 
         # Función para obtener el nombre del mes en formato deseado
         def obtener_nombre_mes(date):
-            meses = ['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
+            meses = ['gen', 'febr', 'març', 'abr', 'maig', 'jun', 'jul', 'ag', 'set', 'oct', 'nov', 'des']
             return meses[date.month - 1]
 
         # Aplicar la función para obtener el nombre del mes
@@ -348,7 +348,7 @@ def generate_total_per_mes(df, year):
         df_copy = df_copy.groupby('Mes').sum().reset_index()
 
         # Crear una columna 'Numero Mes' para ordenar correctamente
-        meses_ordenados =['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'juliol', 'ag', 'set', 'oct', 'nov', 'des']
+        meses_ordenados =['gen', 'febr', 'març', 'abr', 'maig', 'jun', 'jul', 'ag', 'set', 'oct', 'nov', 'des']
         df_copy['Numero Mes'] = df_copy['Mes'].apply(lambda x: meses_ordenados.index(x) + 1)
 
         # Ordenar por el número de mes
@@ -682,16 +682,32 @@ def main():
     
     generate_graphic( generate_total_desplegament_Urgente_mes(df),'grafico.xlsx','% KO Urgentes',"% Peticions Urgents")
     generate_graphic(generate_total_desplegament_DevOps_mes(df), 'grafico.xlsx', '% KO DevOps', "% Peticions DevOps")
-
     
     
+    #Grafico especial de comparativa de meses de diferentes años
     sheet_name = 'Master'
 
+    df_anterior_anterior = generate_total_per_mes(read_excel(path,sheet_name),now.year-2)
     df_anterior = generate_total_per_mes(read_excel(path,sheet_name),now.year-1)
     df_actual = generate_total_per_mes(df,now.year)
 
-    generate_graphic(generate_comparacio_anys(df_actual,df_anterior,now.year,now.year-1),'grafico.xlsx','Comparació anys',"Comparació anys","Mesos")
+    
+    df_any_anterior = generate_comparacio_anys(df_anterior,df_anterior_anterior,now.year-1,now.year-2)
+    df_any_actual = generate_comparacio_anys(df_actual,df_anterior,now.year,now.year-1)
 
+
+   #En el dataframe df_any_actual, agregamos las filas de df_any_anterior, solo si el mes no existe en df_any_actual
+    for index, row in df_any_anterior.iterrows():
+        if row['Mes'] not in df_any_actual['Mes'].values:
+            #Ya que los meses que vamos a agregar corresponder al año anterior, los ponemos al inicio del dataframe
+            df_any_actual.loc[len(df_any_actual)] = row.values
+
+            #Mover los datos de la fila agregada al inicio del dataframe
+            df_any_actual = df_any_actual.iloc[[len(df_any_actual)-1] + list(range(len(df_any_actual)-1))]
+
+
+
+    generate_graphic(df_any_actual,'grafico.xlsx','Comparació anys',"Comparació anys","Mesos")
     print("#########################################")
     print("Grafiques generades correctament")
     print("Reviseu el fitxer Excel")
